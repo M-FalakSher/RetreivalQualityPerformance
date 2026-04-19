@@ -1,0 +1,22 @@
+rag_retrieval_quality_project/
+├── data/
+│   ├── __init__.py
+│   └── dataset_preparation.py
+├── retrieval/
+│   ├── __init__.py
+│   └── retriever.py
+├── models/
+│   ├── __init__.py
+│   └── hallucination_detectors.py
+├── evaluation/
+│   ├── __init__.py
+│   └── metrics.py
+├── experiments/
+│   ├── __init__.py
+│   └── noise_analysis.py
+├── utils/
+│   ├── __init__.py
+│   └── helpers.py
+├── config.py
+├── main.py
+└── requirements.txt
