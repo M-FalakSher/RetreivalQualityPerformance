@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
-from transformers import pipeline
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from data.dataset_preparation import load_real_dataset, prepare_noise_dataset
@@ -10,9 +11,15 @@ from config import GENERATOR_MODEL_NAME, TEST_SIZE
 
 def generate_answers_and_labels(df):
     print(f"Generating answers using {GENERATOR_MODEL_NAME}...")
-    # Initialize a small text2text pipeline
+    # Load FLAN-T5 model and tokenizer
     # Note: We use a small model for local execution. In production, an API call to GPT-4/Claude would be used.
-    generator = pipeline("text2text-generation", model=GENERATOR_MODEL_NAME, device=-1) # Use CPU or GPU if available
+    tokenizer = AutoTokenizer.from_pretrained(GENERATOR_MODEL_NAME)
+    model = AutoModelForSeq2SeqLM.from_pretrained(GENERATOR_MODEL_NAME)
+    
+    # Use GPU if available, otherwise CPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+    model.eval()
     
     generated_answers = []
     labels = []
@@ -21,9 +28,14 @@ def generate_answers_and_labels(df):
         # Construct prompt using Question and Context
         prompt = f"Context: {row['context']}\nQuestion: {row['question']}\nAnswer:"
         
-        # We limit max_new_tokens to keep generation fast
-        output = generator(prompt, max_new_tokens=30, truncation=True)
-        gen_text = output[0]['generated_text'].strip()
+        # Tokenize input
+        inputs = tokenizer(prompt, max_length=512, truncation=True, return_tensors="pt")
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+        
+        # Generate output
+        with torch.no_grad():
+            outputs = model.generate(**inputs, max_new_tokens=30, num_beams=1)
+        gen_text = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
         generated_answers.append(gen_text)
         
         # Labeling heuristic: if the true answer is in the generated text, it's correct (1), else hallucination (0)
